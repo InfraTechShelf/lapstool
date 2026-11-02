@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+
+  <PropertyGroup>
+    <ProjectGuid>{5A1B7C30-0001-4C2D-8E10-1A95C0DE0001}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>LapsTool.Core</RootNamespace>
+    <AssemblyName>LapsTool.Core</AssemblyName>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>$(SolutionRootDir)dist\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>$(SolutionRootDir)dist\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.DirectoryServices.Protocols" />
+    <Reference Include="System.Xml" />
+    <!--
+      Windows PowerShell 5.1 に同梱され GAC に常駐しているものを直接参照する（NuGet不要）。
+      Private=false: システムコンポーネントなので出力フォルダへコピーしない。
+      Windows LAPS の取得・期限変更は、Microsoft 公式の LAPS モジュールをこの経由で呼ぶ。
+    -->
+    <Reference Include="System.Management.Automation">
+      <HintPath>$(WinDir)\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation\v4.0_3.0.0.0__31bf3856ad364e35\System.Management.Automation.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Configuration\AppSettings.cs" />
+    <Compile Include="Configuration\SettingsStore.cs" />
+    <Compile Include="Laps\LapsKind.cs" />
+    <Compile Include="Laps\LapsComputer.cs" />
+    <Compile Include="Laps\LapsPassword.cs" />
+    <Compile Include="Laps\LapsException.cs" />
+    <Compile Include="Laps\ComputerDirectory.cs" />
+    <Compile Include="Laps\WindowsLapsClient.cs" />
+    <Compile Include="Laps\LegacyLapsClient.cs" />
+    <Compile Include="Laps\LapsService.cs" />
+    <Compile Include="Rdp\TemporaryRdpCredential.cs" />
+    <Compile Include="Rdp\RdpLauncher.cs" />
+    <Compile Include="Logging\OperationLog.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

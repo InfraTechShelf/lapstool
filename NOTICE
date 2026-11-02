@@ -1,0 +1,17 @@
+LapsTool
+Copyright 2026 Infra Tech Shelf
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full text.
+
+"LapsTool" is a name used by Infra Tech Shelf for this product. The Apache
+License does not grant permission to use this name for derivative works (see
+Section 6 of the License). If you distribute a modified version, please give
+it a different name so that users can tell it apart from the original.
+
+Microsoft, Windows, Active Directory and Windows LAPS are trademarks of the
+Microsoft group of companies. LapsTool is an unofficial third-party tool and
+is not affiliated with or endorsed by Microsoft. LapsTool does not include or
+redistribute any Microsoft software; it uses the LAPS PowerShell module and
+the Remote Desktop client (mstsc.exe) that are part of Windows on the user's
+machine at run time.

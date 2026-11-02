@@ -1,0 +1,114 @@
+<Window x:Class="LapsTool.Wpf.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LapsTool — LAPS パスワード参照"
+        Width="480" SizeToContent="Height" ResizeMode="CanMinimize"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Yu Gothic UI" FontSize="13">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- ステータスバー -->
+        <Border DockPanel.Dock="Bottom" BorderBrush="#DDD" BorderThickness="0,1,0,0" Background="#F7F7F7">
+            <TextBlock Text="{Binding StatusText}" Margin="12,5" TextWrapping="Wrap" />
+        </Border>
+
+        <StackPanel Margin="12">
+            <!-- 検索 -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         VerticalContentAlignment="Center" Padding="4,3"
+                         ToolTip="コンピューター名または FQDN。* でワイルドカード検索" />
+                <Button Grid.Column="1" Content="検索" Margin="8,0,0,0" Command="{Binding SearchCommand}" IsDefault="True" />
+                <Button Grid.Column="2" Content="設定…" Margin="8,0,0,0" Click="OnSettingsClick" />
+            </Grid>
+
+            <!-- 候補（ワイルドカードで複数ヒットしたときだけ表示） -->
+            <ListBox ItemsSource="{Binding Computers}" SelectedItem="{Binding SelectedComputer, Mode=TwoWay}"
+                     MaxHeight="150" Margin="0,8,0,0"
+                     Visibility="{Binding HasMultipleResults, Converter={StaticResource BoolToVisibility}}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock>
+                            <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" />
+                            <Run Text="{Binding KindDisplay, Mode=OneWay}" Foreground="#777" />
+                        </TextBlock>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel IsEnabled="{Binding HasSelection}" Margin="0,10,0,0">
+                <GroupBox Header="パスワード" Padding="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="コンピューター" Style="{StaticResource Label}" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ComputerDisplay}" Style="{StaticResource Value}" />
+                        <TextBlock Grid.Row="1" Text="LAPS 種別" Style="{StaticResource Label}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding KindDisplay}" Style="{StaticResource Value}" />
+                        <TextBlock Grid.Row="2" Text="アカウント" Style="{StaticResource Label}" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding AccountDisplay}" Style="{StaticResource Value}" />
+
+                        <TextBlock Grid.Row="3" Text="パスワード" Style="{StaticResource Label}" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding PasswordDisplay, Mode=OneWay}" IsReadOnly="True"
+                                 FontFamily="Consolas" FontSize="15" Padding="4,3" Margin="0,4" />
+
+                        <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="0,2,0,6">
+                            <Button Content="取得" Command="{Binding GetPasswordCommand}" />
+                            <Button Content="{Binding ToggleLabel}" Margin="6,0,0,0" Command="{Binding TogglePasswordCommand}" />
+                            <Button Content="コピー" Margin="6,0,0,0" Command="{Binding CopyPasswordCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="5" Text="最終更新" Style="{StaticResource Label}" />
+                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding PasswordUpdateDisplay}" Style="{StaticResource Value}" />
+                        <TextBlock Grid.Row="6" Text="有効期限" Style="{StaticResource Label}" />
+                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding ExpirationDisplay}" Style="{StaticResource Value}" />
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Header="有効期限の変更" Padding="8" Margin="0,10,0,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <DatePicker SelectedDate="{Binding NewExpirationDate}" Width="130" />
+                            <TextBox Text="{Binding NewExpirationTime, UpdateSourceTrigger=PropertyChanged}" Width="60"
+                                     Margin="6,0,0,0" VerticalContentAlignment="Center" ToolTip="HH:mm" />
+                            <Button Content="この日時に変更" Margin="8,0,0,0" Command="{Binding SetExpirationCommand}" />
+                        </StackPanel>
+                        <Button Content="今すぐ期限切れにする" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                Command="{Binding ExpireNowCommand}" />
+                        <TextBlock Foreground="#777" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Text="パスワードが実際に変わるのは、対象端末で次にポリシーが処理されたときです。" />
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="リモートデスクトップ" Padding="8" Margin="0,10,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ConnectUserDisplay}" TextWrapping="Wrap" />
+                        <Button Content="接続" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding ConnectCommand}" />
+                        <TextBlock Foreground="#777" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Text="資格情報を一時的に登録して mstsc に渡し、接続後に自動で削除します。アカウント名は［設定］で変更できます。" />
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </StackPanel>
+    </DockPanel>
+</Window>

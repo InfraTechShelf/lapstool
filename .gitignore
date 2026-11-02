@@ -1,0 +1,18 @@
+# ビルド成果物
+dist/
+bin/
+obj/
+
+# 配布用ZIP（GitHub Releases の添付ファイルとして上げる。リポジトリには含めない）
+release/
+
+# Visual Studio の利用者ごとの設定
+.vs/
+*.user
+*.suo
+
+# 社内配布用の既定値ファイル（ドメインコントローラー名や検索ベースDNなど、環境固有の値が入るため）
+LapsTool.defaults.xml
+
+# 公開しない手元メモ
+private/
