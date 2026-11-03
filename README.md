@@ -3,11 +3,12 @@
 > **English summary** — LapsTool is a small Windows GUI for help-desk and infrastructure staff. It looks
 > up local administrator passwords managed by **Windows LAPS** (encrypted or clear-text) and
 > **legacy Microsoft LAPS** in Active Directory, changes their expiration time, and opens a Remote
-> Desktop session with the retrieved password — without typing or pasting it. The local account name
-> used for the connection is configurable per organization. It runs without local admin rights, has no
-> dependencies beyond .NET Framework 4.8 and Windows, and leaves all authorization to Active Directory.
+> Desktop session as the LAPS-managed local account (user name filled in, password on the clipboard
+> ready to paste). The local account name used for the connection is configurable per organization.
+> It runs without local admin rights, has no dependencies beyond .NET Framework 4.8 and Windows, and
+> leaves all authorization to Active Directory.
 > See [SECURITY.md](SECURITY.md) for how passwords are handled. The UI and documentation are in
-> Japanese. **Status: 0.1.0-alpha.**
+> Japanese. **Status: 0.2.0-alpha.**
 
 > **非公式ツールです。** Microsoft とは関係がなく、Microsoft による承認・サポートもありません。
 > LAPS・Windows・Active Directory は Microsoft グループの商標です。
@@ -36,7 +37,7 @@ Active Directory の LAPS で管理されているローカル管理者パスワ
 展開する前に、ZIP の SHA-256 が Release ページの記載と一致することを確認してください。
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\LapsTool-0.1.0-alpha.zip
+Get-FileHash -Algorithm SHA256 .\LapsTool-0.2.0-alpha.zip
 ```
 
 実行ファイルはコード署名していないため、初回の実行時に Windows SmartScreen の警告が出ることがあります。その場合は「詳細情報」→「実行」で起動できます。
@@ -67,22 +68,19 @@ runas /netonly /user:CORP\admin-user LapsTool.exe
 
 ## リモートデスクトップ接続の仕組み
 
-`mstsc` にはパスワードを渡す引数がないため、次の流れで接続します。
+［接続］を押すと、次の流れで接続します。
 
-1. Windows 資格情報マネージャーに、`TERMSRV/<接続先>` 向けの資格情報を**このログオン中のみ有効**な形で一時登録します。ユーザー名は `<コンピューター名>\<アカウント名>` です。
-2. `mstsc /v:<接続先>` を起動します。mstsc はこの資格情報を自動で使います。
-3. 一定時間（初期値20秒）が過ぎたら削除します。ツールを終了したときにも削除します。万一削除に失敗しても、サインアウトすれば消えます。
+1. パスワードをまだ取得していなければ取得します。
+2. mstsc が接続先ごとに覚えているユーザー名（レジストリの `UsernameHint`）を、`<コンピューター名>\<アカウント名>` に書き換えます。
+3. `mstsc /v:<接続先>` を起動します。mstsc の資格情報の入力画面には、このユーザー名が最初から入っています。
+4. パスワードをクリップボードにコピーします。入力画面のパスワード欄に貼り付けて接続してください。クリップボードは一定時間（初期値30秒）が過ぎると消去されます。
 
 補足：
 
-- 登録には `CredWrite` API を使っています。`cmdkey /pass:` は使わないので、パスワードがコマンドラインに現れることはありません。
-- 接続先向けの資格情報がすでに保存されている場合は、上書きしてよいか確認します。
-- 次のようなポリシーが有効な環境では、保存した資格情報が使われず、パスワードの入力を求められます。
-  - 接続先側：「接続時に常にパスワードを要求する」
-  - 接続元側：「保存された資格情報の委任を許可しない」系の設定
+- パスワードは、mstsc にも資格情報マネージャーにも渡しません。ツールの外に出るのはクリップボードだけです。
+- `UsernameHint` は mstsc 自身も接続に成功したときに書き込む値なので、書き換えても副作用はありません。
 
-  その場合は、設定の「接続時にパスワードをクリップボードにもコピーする」を有効にしてください。
-- 接続先には FQDN かコンピューター名を使います。IP アドレスでは Kerberos でサーバーを認証できないため、保存した資格情報が使われないことがあります。
+**パスワードを自動で入力しない理由**：0.1.0 では、資格情報マネージャーに一時登録して自動でログオンする方式でした。しかし、RDP の認証（CredSSP）は mstsc に渡した資格情報で行われます。LAPS のアカウントはローカルアカウントなので、認証は必ず NTLM になり、サーバーの身元を確認できません。そのため Windows の既定のポリシーでは保存資格情報が拒否され、ほとんどの環境で結局パスワードの入力を求められていました。自動ログオンを通すには、「NTLM のみのサーバー認証で保存された資格情報の委任を許可する」ポリシーなど、サーバーのなりすましを防げなくなる設定が必要になります。ツールの前提としてそれを求めないよう、0.2.0 からはユーザー名だけを渡す方式に変えました。
 
 ## 設定
 
@@ -94,8 +92,7 @@ runas /netonly /user:CORP\admin-user LapsTool.exe
 | Windows LAPS のアカウント名を優先 | オン | Windows LAPS が記録しているアカウント名があれば、それを使います（旧 LAPS は記録しないため、常に設定値を使います） |
 | FQDN で接続 | オン | オフにするとコンピューター名で接続します |
 | 管理モード（/admin） | オフ | |
-| 一時資格情報を削除するまで | 20秒 | 5〜300秒 |
-| 接続時にクリップボードにもコピー | オフ | 保存資格情報が使えない環境向けです |
+| 接続時にパスワードをクリップボードにコピー | オン | mstsc の入力画面に貼り付けるためのものです |
 | クリップボード消去まで | 30秒 | 5〜600秒 |
 | ドメインコントローラー／検索ベース DN | 空 | 空の場合は自動で決まります |
 
@@ -125,15 +122,16 @@ MSBuild.exe LapsTool.sln /t:Rebuild /p:Configuration=Release
 .\pack-release.ps1
 ```
 
-## 検証状況（0.1.0-alpha）
+## 検証状況（0.2.0-alpha）
 
 | 項目 | 状況 |
 |---|---|
 | ビルド（警告0・エラー0）、GUI の起動・終了 | 確認済み |
-| 資格情報の一時登録 → 「このログオン中のみ」で登録されること → 削除 | 確認済み |
 | 設定ファイルの書き出し・範囲外の値の補正 | 確認済み |
-| **旧 LAPS** 環境での検索・参照・有効期限の変更・RDP 接続 | 確認済み（一通りの動作） |
-| **Windows LAPS** 環境（暗号化・平文）での参照・有効期限の変更・RDP 接続 | **未検証** |
+| **旧 LAPS** 環境での検索・参照・有効期限の変更・RDP 接続 | 確認済み（一通りの動作。0.1.0 で確認） |
+| **Windows LAPS** 環境での検索・参照・今すぐ期限切れ | 確認済み（0.1.0 で確認） |
+| **Windows LAPS** 環境での RDP 接続（入力画面に LAPS のアカウントが入る・貼り付けて接続できる・クリップボードが消去される） | 確認済み |
+| 暗号化パスワードを `runas /netonly` で起動したツールから取得できるか | **未検証** |
 
 検証の手順は [docs/検証手順.md](docs/検証手順.md) にあります。Windows LAPS 環境で試した結果（動いた・動かなかった）を Issue で教えていただけると助かります。
 

@@ -105,7 +105,7 @@
                         <TextBlock Text="{Binding ConnectUserDisplay}" TextWrapping="Wrap" />
                         <Button Content="接続" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding ConnectCommand}" />
                         <TextBlock Foreground="#777" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
-                                   Text="資格情報を一時的に登録して mstsc に渡し、接続後に自動で削除します。アカウント名は［設定］で変更できます。" />
+                                   Text="mstsc にユーザー名を入れた状態で接続します。パスワードはクリップボードにコピーされるので、入力画面に貼り付けてください。アカウント名は［設定］で変更できます。" />
                     </StackPanel>
                 </GroupBox>
             </StackPanel>

@@ -1,8 +1,7 @@
 # Security policy
 
-LapsTool displays local administrator passwords managed by LAPS, and briefly stores one in the
-Windows Credential Manager to start a Remote Desktop session. Security reports are taken seriously
-and handled privately.
+LapsTool displays local administrator passwords managed by LAPS and helps start a Remote Desktop
+session as the managed account. Security reports are taken seriously and handled privately.
 
 ## Reporting a vulnerability
 
@@ -39,11 +38,15 @@ How LapsTool handles passwords, so that you can tell intended behaviour from a d
   `LAPS` PowerShell module; LapsTool has no decryption code of its own
 - **Passwords are held as `SecureString`** and turned into plain text only when the user presses
   *Show* or *Copy*
-- **Remote Desktop:** the password is written with the `CredWrite` API (never on a command line) as a
-  `TERMSRV/<host>` credential with *logon session* persistence, and deleted after a configurable
-  delay (default 20 seconds) and when the tool exits
-- **Clipboard:** a copied password is cleared after a configurable delay (default 30 seconds), unless
-  the user has copied something else in the meantime
+- **Remote Desktop:** LapsTool passes only the user name to mstsc (through mstsc's per-host
+  `UsernameHint` registry value) and starts `mstsc /v:<host>`. The password is never given to mstsc,
+  written to Credential Manager, or put on a command line; the user pastes it into mstsc's prompt.
+  (Version 0.1.0 stored a temporary `TERMSRV/<host>` credential instead. It was removed in 0.2.0
+  because local-account RDP logons use NTLM, which Windows' default policy refuses for saved
+  credentials.)
+- **Clipboard:** a copied password, including the one copied when connecting, is cleared after a
+  configurable delay (default 30 seconds) and when the tool exits, unless the user has copied
+  something else in the meantime
 - **Operation log** (`%APPDATA%\LapsTool\logs`) records who viewed or changed what and when. It never
   contains passwords
 
@@ -51,13 +54,14 @@ Things that are **by design** and not considered vulnerabilities:
 
 - A user who is allowed to read a LAPS password can see it, copy it and use it. That is the purpose
   of the tool
-- During the delay before deletion, the temporary Remote Desktop credential exists in the signed-in
-  user's Credential Manager, readable only by that user's logon session
+- Until it is cleared, a copied password is on the clipboard of the signed-in user's session, where
+  other programs running in that session can read it
 - The released binaries are currently **not code-signed**. Verify the SHA-256 hash published with each
   release, or build from source
 
 Things that **would** be vulnerabilities and should be reported:
 
 - Any way for a password to reach disk, a log file, a command line, or another user
-- The temporary Remote Desktop credential surviving past the delay or past tool exit in a normal run
+- A copied password staying on the clipboard past the delay or past tool exit in a normal run
+  (when the user has not copied anything else)
 - Any way to read or change a LAPS attribute beyond the rights Active Directory grants the user

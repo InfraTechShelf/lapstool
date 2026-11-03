@@ -220,10 +220,9 @@ namespace LapsTool.Wpf.ViewModels
             RaiseDetails();
         }
 
-        /// <summary>終了時の後始末。一時資格情報とクリップボードを残さない。</summary>
+        /// <summary>終了時の後始末。クリップボードにパスワードを残さない。</summary>
         public void Shutdown()
         {
-            _rdp.DeleteAllPending();
             _clipboard.ClearIfOurs();
             ClearPassword();
         }
@@ -299,28 +298,23 @@ namespace LapsTool.Wpf.ViewModels
         {
             await RunAsync("接続を準備中…", async () =>
             {
+                // アカウント名（Windows LAPS の記録を優先する場合）とコピーするパスワードのために先に取得する。
                 if (_password == null)
                     await FetchPasswordAsync();
 
-                var computer = _selectedComputer;
-                var address = RdpLauncher.ResolveAddress(computer, _settings);
+                _rdp.Launch(_selectedComputer, _password, _settings);
 
-                if (TemporaryRdpCredential.Exists(address) &&
-                    !_dialogs.Confirm(address + " 向けの資格情報が既に保存されています。\n\n" +
-                                      "LAPS のパスワードで上書きして接続し、接続後に削除します。" +
-                                      "（元の保存内容は戻りません）\n\nよろしいですか？"))
+                if (_settings.CopyPasswordOnRdp)
                 {
-                    StatusText = "接続を中止しました。";
-                    return;
-                }
-
-                _rdp.Launch(computer, _password, _settings);
-
-                if (_settings.CopyPasswordOnConnect)
                     _clipboard.Copy(_password.Password, _settings.ClipboardClearSeconds);
-
-                StatusText = "mstsc を起動しました。一時登録した資格情報は " + _settings.CredentialDeleteSeconds +
-                             " 秒後に削除します。";
+                    _log.Write("パスワードコピー", _password.ComputerName, "RDP接続時にクリップボードへコピー");
+                    StatusText = "mstsc を起動しました。パスワード欄に貼り付けてください（クリップボードは " +
+                                 _settings.ClipboardClearSeconds + " 秒後に消去）。";
+                }
+                else
+                {
+                    StatusText = "mstsc を起動しました。パスワードを入力してください。";
+                }
             });
         }
 
@@ -330,21 +324,27 @@ namespace LapsTool.Wpf.ViewModels
             {
                 var target = _selectedComputer;
                 var updated = await Task.Run(() => _service.SetExpiration(target, when));
-
-                // 一覧の要素を差し替えると DataGrid が選択を外し、取得済みパスワードが破棄される。
-                // 期限を変えてもパスワード自体は次のローテーションまで有効なので、退避して戻す。
-                var keep = _password;
-                _password = null;
-                var index = Computers.IndexOf(target);
-                if (index >= 0) Computers[index] = updated;
-                _selectedComputer = updated;
-                _password = keep;
-                RaisePropertyChanged(nameof(SelectedComputer));
-                ResetNewExpiration();
-                RaiseDetails();
+                ReplaceSelected(updated);
 
                 StatusText = updated.Name + " の有効期限を変更しました。";
             });
+        }
+
+        /// <summary>
+        /// 選択中のコンピューターを新しい値に差し替える。
+        /// 一覧の要素を差し替えると ListBox が選択を外し、取得済みパスワードが破棄されるので、退避して戻す。
+        /// </summary>
+        private void ReplaceSelected(LapsComputer updated)
+        {
+            var keep = _password;
+            _password = null;
+            var index = Computers.IndexOf(_selectedComputer);
+            if (index >= 0) Computers[index] = updated;
+            _selectedComputer = updated;
+            _password = keep;
+            RaisePropertyChanged(nameof(SelectedComputer));
+            ResetNewExpiration();
+            RaiseDetails();
         }
 
         private async Task FetchPasswordAsync()
@@ -361,7 +361,13 @@ namespace LapsTool.Wpf.ViewModels
 
             ClearPassword();
             _password = password;
-            RaiseDetails();
+
+            // 検索した後にローテーションされていると、検索時点の有効期限は古い。
+            // パスワードと同時に取れた最新の期限で表示を更新する（旧 LAPS も同時に読んでいる）。
+            if (password.ExpirationTime.HasValue && password.ExpirationTime != target.ExpirationTime)
+                ReplaceSelected(target.WithExpiration(password.ExpirationTime));
+            else
+                RaiseDetails();
         }
 
         private async Task RunAsync(string busyText, Func<Task> action)

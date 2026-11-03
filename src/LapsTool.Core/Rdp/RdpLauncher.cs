@@ -1,26 +1,23 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
 using LapsTool.Core.Configuration;
 using LapsTool.Core.Laps;
 using LapsTool.Core.Logging;
+using Microsoft.Win32;
 
 namespace LapsTool.Core.Rdp
 {
     /// <summary>
-    /// 参照したパスワードでリモートデスクトップ接続する。
+    /// 参照した LAPS のアカウントでリモートデスクトップ接続を始める。
     ///
-    /// 流れ: 資格情報を一時登録 → mstsc /v:&lt;接続先&gt; を起動 → 一定時間後に削除。
-    /// 同じ接続先へ続けて接続した場合に、古いタイマーが新しい登録を消さないよう
-    /// 接続先ごとに世代番号を持つ。ツール終了時は <see cref="DeleteAllPending"/> で残りを消す。
+    /// mstsc にはユーザー名だけを渡し、パスワードは利用者が入力する。
+    /// 資格情報マネージャーに保存して自動ログオンする方式は採らない。LAPS のアカウントはローカル
+    /// アカウントなので RDP の認証が必ず NTLM になり、Windows の既定のポリシーでは保存資格情報が
+    /// 拒否されるため（許可するにはサーバーのなりすましを防げなくなるポリシー変更が要る）。
     /// </summary>
     public sealed class RdpLauncher
     {
-        private readonly object _gate = new object();
-        private readonly Dictionary<string, int> _pending =
-            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private readonly OperationLog _log;
 
         public RdpLauncher(OperationLog log)
@@ -29,7 +26,7 @@ namespace LapsTool.Core.Rdp
             _log = log;
         }
 
-        /// <summary>接続先アドレス（mstsc /v: に渡す値。資格情報のターゲット名と一致させる必要がある）。</summary>
+        /// <summary>接続先アドレス（mstsc /v: に渡す値）。</summary>
         public static string ResolveAddress(LapsComputer computer, AppSettings settings)
         {
             return settings.ConnectByFqdn && !string.IsNullOrEmpty(computer.DnsHostName)
@@ -54,7 +51,6 @@ namespace LapsTool.Core.Rdp
         public void Launch(LapsComputer computer, LapsPassword password, AppSettings settings)
         {
             if (computer == null) throw new ArgumentNullException(nameof(computer));
-            if (password == null) throw new ArgumentNullException(nameof(password));
             if (settings == null) throw new ArgumentNullException(nameof(settings));
 
             var address = ResolveAddress(computer, settings);
@@ -62,34 +58,15 @@ namespace LapsTool.Core.Rdp
 
             try
             {
-                TemporaryRdpCredential.Write(address, userName, password.Password);
-
-                int generation;
-                lock (_gate)
-                {
-                    int current;
-                    _pending.TryGetValue(address, out current);
-                    generation = current + 1;
-                    _pending[address] = generation;
-                }
+                SetUsernameHint(address, userName);
 
                 var args = "/v:" + address + (settings.RdpAdminMode ? " /admin" : "");
-                try
+                Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "mstsc.exe"), args)
                 {
-                    Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "mstsc.exe"), args)
-                    {
-                        UseShellExecute = false,
-                    });
-                }
-                catch
-                {
-                    // 起動できなかったなら登録を残す理由が無い。
-                    DeleteIfCurrent(address, generation);
-                    throw;
-                }
+                    UseShellExecute = false,
+                });
 
                 _log.Write("RDP接続", computer.Name, "mstsc起動: " + address + " / " + userName);
-                ScheduleDelete(address, generation, settings.CredentialDeleteSeconds);
             }
             catch (Exception ex)
             {
@@ -98,54 +75,25 @@ namespace LapsTool.Core.Rdp
             }
         }
 
-        /// <summary>まだ削除されていない一時資格情報をすべて消す（ツール終了時）。</summary>
-        public void DeleteAllPending()
+        /// <summary>
+        /// mstsc が資格情報の入力画面に出すユーザー名（接続先ごとの UsernameHint）を、LAPS のアカウントにする。
+        /// 放っておくと、前回その接続先に使った別のアカウント（例: ドメインの Administrator）が出る。
+        /// mstsc 自身も接続成功時に同じ値を書くので、上書きしても副作用は無い。
+        /// </summary>
+        private static void SetUsernameHint(string address, string userName)
         {
-            List<string> targets;
-            lock (_gate)
+            try
             {
-                targets = new List<string>(_pending.Keys);
-                _pending.Clear();
-            }
-
-            foreach (var address in targets)
-            {
-                try
+                using (var key = Registry.CurrentUser.CreateSubKey(
+                    @"Software\Microsoft\Terminal Server Client\Servers\" + address))
                 {
-                    TemporaryRdpCredential.Delete(address);
-                }
-                catch (Exception)
-                {
-                    // 終了処理なので握りつぶす。CRED_PERSIST_SESSION なのでログオフ時に消える。
+                    if (key != null) key.SetValue("UsernameHint", userName, RegistryValueKind.String);
                 }
             }
-        }
-
-        private void ScheduleDelete(string address, int generation, int seconds)
-        {
-            Task.Delay(TimeSpan.FromSeconds(seconds)).ContinueWith(_ =>
+            catch (Exception)
             {
-                try
-                {
-                    DeleteIfCurrent(address, generation);
-                }
-                catch (Exception ex)
-                {
-                    _log.Write("RDP接続", address, "一時資格情報の削除に失敗: " + ex.Message);
-                }
-            }, TaskScheduler.Default);
-        }
-
-        private void DeleteIfCurrent(string address, int generation)
-        {
-            lock (_gate)
-            {
-                int current;
-                if (!_pending.TryGetValue(address, out current) || current != generation)
-                    return; // 後から同じ接続先へ接続し直している。そちらのタイマーに任せる。
-                _pending.Remove(address);
+                // 入力欄の初期値が変わらないだけなので、接続自体は止めない。
             }
-            TemporaryRdpCredential.Delete(address);
         }
     }
 }

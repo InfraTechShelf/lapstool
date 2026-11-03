@@ -30,16 +30,11 @@ namespace LapsTool.Core.Configuration
         public bool RdpAdminMode { get; set; }
 
         /// <summary>
-        /// mstsc 起動後、一時登録した資格情報を削除するまでの秒数。
-        /// mstsc が資格情報を読み終える前に消すと入力を求められるため、短くしすぎない。
+        /// 接続時にパスワードをクリップボードへコピーし、mstsc の入力画面に貼り付けられるようにする。
+        /// 旧版の CopyPasswordOnConnect（既定オフ）とは意味が変わったため、名前を変えて既定オンにしている
+        /// （旧版の設定ファイルの値を引き継がないように）。
         /// </summary>
-        public int CredentialDeleteSeconds { get; set; } = 20;
-
-        /// <summary>
-        /// 保存資格情報がポリシーで使えない環境向けのフォールバック。
-        /// 接続時にパスワードをクリップボードにもコピーする（既定オフ）。
-        /// </summary>
-        public bool CopyPasswordOnConnect { get; set; }
+        public bool CopyPasswordOnRdp { get; set; } = true;
 
         /// <summary>クリップボードにコピーしたパスワードを自動消去するまでの秒数。</summary>
         public int ClipboardClearSeconds { get; set; } = 30;
@@ -67,7 +62,6 @@ namespace LapsTool.Core.Configuration
             LocalAccountName = LocalAccountName.Trim();
             DomainController = (DomainController ?? "").Trim();
             SearchBase = (SearchBase ?? "").Trim();
-            CredentialDeleteSeconds = Clamp(CredentialDeleteSeconds, 5, 300);
             ClipboardClearSeconds = Clamp(ClipboardClearSeconds, 5, 600);
             MaxSearchResults = Clamp(MaxSearchResults, 1, 5000);
         }

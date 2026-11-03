@@ -10,9 +10,9 @@ using System.Windows;
 [assembly: AssemblyTrademark("Microsoft, Windows, Active Directory, Windows LAPS は Microsoft グループの商標です。本ツールは非公式です。")]
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("0.1.0.0")]
-[assembly: AssemblyFileVersion("0.1.0.0")]
-[assembly: AssemblyInformationalVersion("0.1.0-alpha")]
+[assembly: AssemblyVersion("0.2.0.0")]
+[assembly: AssemblyFileVersion("0.2.0.0")]
+[assembly: AssemblyInformationalVersion("0.2.0-alpha")]
 
 // テーマ用リソースをアセンブリ内から解決する（WPFの既定構成）。
 [assembly: ThemeInfo(ResourceDictionaryLocation.None, ResourceDictionaryLocation.SourceAssembly)]

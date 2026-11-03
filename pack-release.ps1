@@ -27,7 +27,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $dist = Join-Path $root "dist\Release"
 # src\LapsTool.Wpf\Properties\AssemblyInfo.cs の AssemblyInformationalVersion と揃えること
-$version = "0.1.0-alpha"
+$version = "0.2.0-alpha"
 $appName = "LapsTool"
 
 # 公開する実行ファイル群（これ以外は含めない）

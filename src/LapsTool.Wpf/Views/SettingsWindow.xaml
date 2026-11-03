@@ -18,7 +18,6 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Text="ローカルアカウント名" Style="{StaticResource Label}" />
@@ -32,17 +31,11 @@
                 <CheckBox Grid.Row="3" Grid.Column="1" Margin="0,4" IsChecked="{Binding RdpAdminMode}"
                           Content="管理モード（/admin）で接続する" />
 
-                <TextBlock Grid.Row="4" Text="一時資格情報を削除するまで（秒）" Style="{StaticResource Label}" />
-                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding CredentialDeleteSeconds}" Width="80"
-                         HorizontalAlignment="Left" Margin="0,4" Padding="3" />
+                <CheckBox Grid.Row="4" Grid.Column="1" Margin="0,4" IsChecked="{Binding CopyPasswordOnRdp}"
+                          Content="接続時にパスワードをクリップボードにコピーする" />
 
-                <CheckBox Grid.Row="5" Grid.Column="1" Margin="0,4" IsChecked="{Binding CopyPasswordOnConnect}">
-                    <TextBlock TextWrapping="Wrap"
-                               Text="接続時にパスワードをクリップボードにもコピーする（保存資格情報がポリシーで使えない環境向け）" />
-                </CheckBox>
-
-                <TextBlock Grid.Row="6" Text="クリップボード消去まで（秒）" Style="{StaticResource Label}" />
-                <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding ClipboardClearSeconds}" Width="80"
+                <TextBlock Grid.Row="5" Text="クリップボード消去まで（秒）" Style="{StaticResource Label}" />
+                <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding ClipboardClearSeconds}" Width="80"
                          HorizontalAlignment="Left" Margin="0,4" Padding="3" />
             </Grid>
         </GroupBox>
